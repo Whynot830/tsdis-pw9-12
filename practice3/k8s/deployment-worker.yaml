@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: finances
+  labels:
+    app: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      initContainers:
+        - name: wait-schema
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until psql "$DATABASE_URL" -tAc "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='categories'" | grep -qx 1; do
+                echo "waiting for Drizzle schema..."
+                sleep 3
+              done
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: database-url
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: postgres-password
+      containers:
+        - name: worker
+          image: finance-worker:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 3001
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: finances-config
+                  key: PORT_WORKER
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: database-url
+            - name: INTERNAL_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: internal-api-token
+            - name: TELEGRAM_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: telegram-bot-token
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 15
+            periodSeconds: 20

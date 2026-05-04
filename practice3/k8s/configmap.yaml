@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finances-config
+  namespace: finances
+data:
+  # Должен совпадать с хостом Ingress и тем, что открывается в браузере (better-auth / cookies).
+  ORIGIN: 'http://finance.local'
+  # Внутрикластерный вызов воркера (имя Service = metadata.name в service-worker.yaml).
+  WORKER_INTERNAL_URL: 'http://worker:3001'
+  PORT_GATEWAY: '3000'
+  PORT_WORKER: '3001'

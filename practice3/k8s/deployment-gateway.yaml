@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: finances
+  labels:
+    app: gateway
+spec:
+  # Методичка (практика 3): для фронтенда/API Gateway рекомендуется 2 реплики.
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      initContainers:
+        - name: wait-schema
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until psql "$DATABASE_URL" -tAc "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='categories'" | grep -qx 1; do
+                echo "waiting for Drizzle schema..."
+                sleep 3
+              done
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: database-url
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: postgres-password
+      containers:
+        - name: gateway
+          image: finance-gateway:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: finances-config
+                  key: PORT_GATEWAY
+            - name: ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: finances-config
+                  key: ORIGIN
+            - name: WORKER_INTERNAL_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: finances-config
+                  key: WORKER_INTERNAL_URL
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: database-url
+            - name: BETTER_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: better-auth-secret
+            - name: INTERNAL_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: internal-api-token
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: google-client-id
+                  optional: true
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: google-client-secret
+                  optional: true
+            - name: GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: github-client-id
+                  optional: true
+            - name: GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: finances-secrets
+                  key: github-client-secret
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
