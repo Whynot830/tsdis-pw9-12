@@ -1,0 +1,89 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: finances
+      POSTGRES_PASSWORD: finances
+      POSTGRES_DB: finances
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U finances -d finances']
+      interval: 5s
+      timeout: 5s
+      retries: 8
+
+  # Одноразово: drizzle-kit push после готовности Postgres (чистый подъём без ручного db:push).
+  db-migrate:
+    image: node:22-alpine
+    working_dir: /app
+    environment:
+      DATABASE_URL: postgresql://finances:finances@postgres:5432/finances
+      CI: 'true'
+    volumes:
+      - ./services/gateway:/app
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        npm ci --ignore-scripts
+        npx drizzle-kit push --force
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  worker:
+    build: ./services/worker
+    environment:
+      DATABASE_URL: postgresql://finances:finances@postgres:5432/finances
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-dev-internal-token-change-me}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      PORT: '3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+
+  gateway:
+    build: ./services/gateway
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgresql://finances:finances@postgres:5432/finances
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-better-auth-secret-min-32-chars-long!!}
+      ORIGIN: http://localhost:3000
+      PORT: '3000'
+      WORKER_INTERNAL_URL: http://worker:3001
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-dev-internal-token-change-me}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+      worker:
+        condition: service_started
+
+  pgadmin:
+    image: dpage/pgadmin4:8.14
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - '${PGADMIN_PORT:-5050}:80'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  pgadmin_data:
