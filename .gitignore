@@ -1,0 +1,38 @@
+# --- Секреты (никогда в Git) ---
+.env
+**/.env
+!.env.example
+!**/.env.example
+!**/.env.test
+
+# --- Зависимости ---
+node_modules/
+**/.venv/
+venv/
+
+# --- Сборка и кэши (SvelteKit / Node) ---
+**/.svelte-kit/
+**/build/
+**/dist/
+.output/
+.vercel/
+.netlify/
+
+# --- Логи ---
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+
+# --- ОС ---
+.DS_Store
+Thumbs.db
+
+# --- Редакторы / IDE ---
+.cursor/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Временные файлы Microsoft Office ---
+~$*
