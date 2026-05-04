@@ -6,8 +6,6 @@ import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
 
 const origin = env.ORIGIN ?? '';
-const isLocalHttp =
-  origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1');
 
 const trustedOrigins = [...new Set([origin, 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://127.0.0.1:3000'].filter(Boolean))];
 
@@ -23,8 +21,8 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24
   },
   advanced: {
-    // В Docker NODE_ENV=production + http://localhost: иначе Secure-cookies не ставятся — OAuth «ломается» после редиректа.
-    useSecureCookies: process.env.NODE_ENV === 'production' && !isLocalHttp
+    // Secure-cookies только по HTTPS — иначе ломается вход при NODE_ENV=production и HTTP (Docker, Minikube Ingress без TLS).
+    useSecureCookies: process.env.NODE_ENV === 'production' && origin.startsWith('https://')
   },
   socialProviders: {
     ...(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
