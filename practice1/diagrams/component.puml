@@ -1,0 +1,33 @@
+@startuml component
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+skinparam dpi 320
+
+LAYOUT_WITH_LEGEND()
+
+title Компонентная диаграмма (C3) — контейнер «Web и API» (SvelteKit gateway)
+
+scale max 2400 width
+
+Container_Boundary(gw, "Web и API (gateway)") {
+  Component(ui, "Страницы и UI", "Svelte 5", "Маршруты (app): дашборд, транзакции, категории, аналитика.")
+  Component(auth, "Слой аутентификации", "better-auth", "Сессии, вход пользователя, привязка запросов к user.id.")
+  Component(api_tx, "Transaction API", "+server.ts / load", "Создание, список и изменение transactions (суммы в копейках).")
+  Component(api_cat, "Category API", "+server.ts / load", "CRUD категорий расходов.")
+  Component(internal, "Клиент Analytics Worker", "fetch / HTTP", "Вызов POST /internal/recalculate (или аналог) с секретом после изменения данных.")
+}
+
+Container(worker, "Analytics Worker", "Node.js / TypeScript", "Проверка лимитов, Telegram.")
+ContainerDb(db, "PostgreSQL", "РСУБД", "Общее хранилище gateway и worker.")
+
+Rel(ui, api_tx, "Действия пользователя", "")
+Rel(ui, api_cat, "Действия пользователя", "")
+Rel(api_tx, auth, "Проверка пользователя", "")
+Rel(api_cat, auth, "Проверка пользователя", "")
+Rel(api_tx, db, "Drizzle", "SQL")
+Rel(api_cat, db, "Drizzle", "SQL")
+Rel(auth, db, "Пользователи и сессии", "SQL")
+Rel(api_tx, internal, "После операций с транзакциями", "")
+Rel(internal, worker, "Внутренний HTTP", "Docker / K8s Service worker")
+
+@enduml

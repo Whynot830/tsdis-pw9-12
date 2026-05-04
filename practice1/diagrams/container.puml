@@ -1,0 +1,28 @@
+@startuml container
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+skinparam dpi 320
+
+LAYOUT_WITH_LEGEND()
+
+title Диаграмма контейнеров (C2) — персональный финансовый менеджер
+
+scale max 2400 width
+
+Person(user, "Пользователь", "Клиент приложения")
+
+System_Boundary(boundary, "Граница программной системы") {
+  Container(gateway, "Web и API", "SvelteKit (practice2/services/gateway)", "Веб-интерфейс, HTTP API для транзакций и категорий, аутентификация (better-auth).")
+  Container(worker, "Analytics Worker", "Node.js / TypeScript (practice2/services/worker)", "Фоновая проверка лимитов бюджета по данным из БД, запись журнала алертов, отправка сообщений в Telegram по расписанию или по вызову.")
+  ContainerDb(db, "База данных", "PostgreSQL", "Пользователи (better-auth), categories, transactions, budget_limits, user_notification_settings, budget_alert_log.")
+}
+
+System_Ext(telegram, "Telegram Bot API", "Интеграция уведомлений")
+
+Rel(user, gateway, "Использует", "HTTPS")
+Rel(gateway, db, "Читает и изменяет доменные данные", "TCP / SQL (Drizzle ORM)")
+Rel(worker, db, "Считает агрегаты, пишет журнал уведомлений", "TCP / SQL")
+Rel(gateway, worker, "Инициирует пересчёт / проверку бюджета", "HTTP (внутренняя сеть, X-Internal-Token)")
+Rel(worker, telegram, "sendMessage и аналоги", "HTTPS")
+
+@enduml

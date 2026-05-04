@@ -1,0 +1,21 @@
+@startuml context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+skinparam dpi 320
+
+LAYOUT_WITH_LEGEND()
+
+title Контекстная диаграмма (C1) — персональный финансовый менеджер
+
+scale max 2400 width
+
+Person(user, "Пользователь", "Физическое лицо, ведущее личный или семейный бюджет.")
+
+System(system, "Персональный финансовый менеджер", "Учёт транзакций и категорий, аналитика расходов, фоновая проверка лимитов бюджета и уведомления при превышении.")
+
+System_Ext(telegram, "Telegram Bot API", "Внешний мессенджер: доставка уведомлений пользователю.")
+
+Rel(user, system, "Работает с системой", "HTTPS / браузер")
+Rel(system, telegram, "Отправляет уведомления о событиях бюджета", "HTTPS")
+
+@enduml
