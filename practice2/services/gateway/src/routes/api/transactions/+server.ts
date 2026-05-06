@@ -5,6 +5,7 @@ import { transactions, categories } from '$lib/server/db/schema';
 import { eq, and, desc, gte, lte } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
 import { notifyWorkerRecalculate } from '$lib/server/worker-notify';
+import { financeTransactionsCreatedTotal } from '$lib/server/metrics';
 
 // GET /api/transactions - Get all transactions for current user (with optional filters)
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -118,6 +119,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       .returning();
 
     notifyWorkerRecalculate(env.WORKER_INTERNAL_URL, env.INTERNAL_API_TOKEN, userId);
+
+    financeTransactionsCreatedTotal.inc();
 
     return json({
       success: true,

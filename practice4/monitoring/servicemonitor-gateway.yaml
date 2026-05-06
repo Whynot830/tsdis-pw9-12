@@ -1,0 +1,23 @@
+# ServiceMonitor для Prometheus Operator (kube-prometheus-stack).
+# Ожидается Service `gateway` в namespace `finances` с портом `http` (см. practice3/k8s/service-gateway.yaml).
+# Эндпоинт метрик: GET /metrics на том же порту, что и приложение (3000).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: finance-gateway
+  namespace: finances
+  labels:
+    app: finance-monitoring
+    component: gateway
+spec:
+  selector:
+    matchLabels:
+      app: gateway
+  namespaceSelector:
+    matchNames:
+      - finances
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scheme: http

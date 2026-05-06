@@ -1,0 +1,21 @@
+# ServiceMonitor для воркера (порт 3001, имя порта `http` в service-worker.yaml).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: finance-worker
+  namespace: finances
+  labels:
+    app: finance-monitoring
+    component: worker
+spec:
+  selector:
+    matchLabels:
+      app: worker
+  namespaceSelector:
+    matchNames:
+      - finances
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scheme: http

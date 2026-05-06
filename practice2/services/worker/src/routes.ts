@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type postgres from 'postgres';
 import { runBudgetCheck } from './budget-runner.js';
+import { financeBudgetRecalculationsTotal } from './metrics.js';
 
 export async function registerInternalRoutes(
   app: FastifyInstance,
@@ -19,8 +20,14 @@ export async function registerInternalRoutes(
         return reply.code(400).send({ error: 'userId required' });
       }
 
-      await runBudgetCheck(sql, userId);
-      return reply.send({ ok: true });
+      try {
+        await runBudgetCheck(sql, userId);
+        financeBudgetRecalculationsTotal.inc({ result: 'ok' });
+        return reply.send({ ok: true });
+      } catch (err) {
+        financeBudgetRecalculationsTotal.inc({ result: 'error' });
+        throw err;
+      }
     }
   );
 }

@@ -1,6 +1,11 @@
 import Fastify from 'fastify';
 import postgres from 'postgres';
 import { registerInternalRoutes } from './routes.js';
+import {
+  httpRequestDurationSeconds,
+  httpRequestsTotal,
+  register as metricsRegister
+} from './metrics.js';
 
 const PORT = Number(process.env.PORT || 3001);
 
@@ -15,7 +20,21 @@ async function main() {
   const sql = postgres(process.env.DATABASE_URL, { max: 8 });
   const app = Fastify({ logger: true });
 
+  app.addHook('onResponse', async (request, reply) => {
+    const route = request.routeOptions?.url ?? request.url.split('?')[0] ?? 'unknown';
+    const seconds = reply.elapsedTime / 1000;
+    const { method } = request;
+    const code = String(reply.statusCode);
+    httpRequestsTotal.inc({ method, route, code });
+    httpRequestDurationSeconds.observe({ method, route }, seconds);
+  });
+
   app.get('/health', async () => ({ ok: true, service: 'worker' }));
+
+  app.get('/metrics', async (_req, reply) => {
+    const body = await metricsRegister.metrics();
+    return reply.type(metricsRegister.contentType).send(body);
+  });
 
   await registerInternalRoutes(app, sql);
 
